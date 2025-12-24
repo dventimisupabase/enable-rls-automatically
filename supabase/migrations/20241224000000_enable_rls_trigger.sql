@@ -11,6 +11,8 @@ SECURITY DEFINER
 AS $$
 DECLARE
     obj record;
+    table_oid oid;
+    rls_status record;
 BEGIN
     FOR obj IN SELECT * FROM pg_event_trigger_ddl_commands()
         WHERE command_tag IN ('CREATE TABLE', 'CREATE TABLE AS', 'SELECT INTO')
@@ -18,9 +20,20 @@ BEGIN
     LOOP
         -- Only apply to public schema
         IF obj.schema_name = 'public' THEN
-            EXECUTE format('ALTER TABLE %s ENABLE ROW LEVEL SECURITY', obj.object_identity);
-            EXECUTE format('ALTER TABLE %s FORCE ROW LEVEL SECURITY', obj.object_identity);
-            RAISE NOTICE 'RLS enabled with FORCE on table: %', obj.object_identity;
+            table_oid := obj.object_identity::regclass::oid;
+
+            SELECT relrowsecurity, relforcerowsecurity
+            INTO rls_status
+            FROM pg_class
+            WHERE oid = table_oid;
+
+            IF rls_status.relrowsecurity AND rls_status.relforcerowsecurity THEN
+                RAISE NOTICE 'RLS with FORCE already enabled on table: %', obj.object_identity;
+            ELSE
+                EXECUTE format('ALTER TABLE %s ENABLE ROW LEVEL SECURITY', obj.object_identity);
+                EXECUTE format('ALTER TABLE %s FORCE ROW LEVEL SECURITY', obj.object_identity);
+                RAISE NOTICE 'RLS enabled with FORCE on table: %', obj.object_identity;
+            END IF;
         END IF;
     END LOOP;
 END;

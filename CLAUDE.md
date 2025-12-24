@@ -26,7 +26,7 @@ supabase db push
 Single PostgreSQL event trigger with two components:
 
 1. **Event Trigger** (`enable_rls_trigger`): Fires on `ddl_command_end` for `CREATE TABLE`, `CREATE TABLE AS`, and `SELECT INTO`
-2. **Trigger Function** (`enable_rls_on_new_tables()`): Uses `pg_event_trigger_ddl_commands()` to get new table info, filters for `public` schema, then runs `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` and `ALTER TABLE ... FORCE ROW LEVEL SECURITY`
+2. **Trigger Function** (`public.enable_rls_on_new_tables()`): Uses `pg_event_trigger_ddl_commands()` to get new table info, filters for `public` schema, then runs `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` and `ALTER TABLE ... FORCE ROW LEVEL SECURITY`. Declared as `SECURITY DEFINER` to execute with owner privileges.
 
 Key files:
 - `supabase/migrations/20241224000000_enable_rls_trigger.sql` - Migration that creates the trigger
@@ -35,12 +35,13 @@ Key files:
 ## Testing
 
 Tests use pgTAP and run inside a transaction that rolls back (no cleanup needed). Test categories:
-- Installation verification (function/trigger existence)
-- Core functionality (RLS + FORCE enabled)
-- Schema filtering (public only; temp/private ignored)
+- Installation verification (function/trigger existence, event binding)
+- Core functionality (RLS + FORCE enabled on basic and constrained tables)
+- Schema filtering (public only; temp/private/other schemas ignored)
 - CREATE TABLE variants (CTAS, LIKE, IF NOT EXISTS, UNLOGGED, partitioned)
 - Non-triggering DDL (views, matviews, ALTER, INDEX, SEQUENCE)
 - Edge cases (special chars, mixed case, reserved words, idempotency)
+- Transaction behavior (savepoint rollback, visibility)
 - Uninstall verification (disable/enable trigger behavior)
 
 ## Important Behavior
@@ -49,6 +50,7 @@ Tests use pgTAP and run inside a transaction that rolls back (no cleanup needed)
 - Only affects **new** tables created after installation; existing tables unchanged
 - Tables still need RLS policies created; this just enables the mechanism
 - Tables without policies deny all access (except to superusers/owners without FORCE)
+- The trigger is idempotent: if RLS is already enabled, it logs a notice but doesn't error
 
 ## Verification Query
 
@@ -59,3 +61,10 @@ WHERE relname = 'your_table_name';
 ```
 
 Both `relrowsecurity` and `relforcerowsecurity` should be `t` (true).
+
+## Temporarily Disabling the Trigger
+
+```sql
+ALTER EVENT TRIGGER enable_rls_trigger DISABLE;  -- Disable
+ALTER EVENT TRIGGER enable_rls_trigger ENABLE;   -- Re-enable
+```

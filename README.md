@@ -104,16 +104,16 @@ supabase test db
 
 ### Test Coverage
 
-| Category | Tests | Description |
-|----------|-------|-------------|
-| Installation Verification | 4 | Function/trigger existence, correct event binding |
-| Core Functionality | 4 | RLS + FORCE enabled on basic/constrained tables |
-| Schema Filtering | 4 | public only; temp/private/auth ignored |
-| CREATE TABLE Variants | 6 | CTAS, LIKE, IF NOT EXISTS, UNLOGGED, partitioned |
-| Non-Triggering DDL | 5 | Views, matviews, ALTER, INDEX, SEQUENCE |
-| Edge Cases | 5 | Special chars, mixed case, reserved words, idempotency |
-| Transaction Behavior | 2 | Savepoint rollback, visibility |
-| Uninstall Verification | 4 | Disable/enable trigger, behavior changes |
+| Category                  | Tests | Description                                            |
+|---------------------------|-------|--------------------------------------------------------|
+| Installation Verification | 4     | Function/trigger existence, correct event binding      |
+| Core Functionality        | 4     | RLS + FORCE enabled on basic/constrained tables        |
+| Schema Filtering          | 4     | public only; temp/private/auth ignored                 |
+| CREATE TABLE Variants     | 6     | CTAS, LIKE, IF NOT EXISTS, UNLOGGED, partitioned       |
+| Non-Triggering DDL        | 5     | Views, matviews, ALTER, INDEX, SEQUENCE                |
+| Edge Cases                | 5     | Special chars, mixed case, reserved words, idempotency |
+| Transaction Behavior      | 2     | Savepoint rollback, visibility                         |
+| Uninstall Verification    | 4     | Disable/enable trigger, behavior changes               |
 
 ## Important Notes
 

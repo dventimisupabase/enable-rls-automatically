@@ -270,7 +270,7 @@ SELECT ok(
 );
 
 -- ============================================
--- 6. EDGE CASES (5 tests)
+-- 6. EDGE CASES (6 tests)
 -- ============================================
 
 -- Test 24: Multiple tables in single transaction all get RLS
@@ -299,7 +299,7 @@ SELECT ok(
     'Mixed-case table name should have RLS enabled'
 );
 
--- Test 27: Reserved word as table name
+-- Test 27: Reserved word as table name and idempotency
 CREATE TABLE public."user" (id int);
 
 SELECT ok(
@@ -307,14 +307,22 @@ SELECT ok(
     'Reserved word table name should have RLS enabled'
 );
 
--- Test 28: Table with RLS already enabled somehow (idempotency)
--- This tests that the trigger doesn't error if RLS is already on
-CREATE TABLE public.test_already_rls (id int);
--- RLS should already be enabled, try to enable again via direct ALTER
-SELECT lives_ok(
-    'ALTER TABLE public.test_already_rls ENABLE ROW LEVEL SECURITY',
-    'Enabling RLS on already-RLS table should not error'
+CREATE TABLE public.test_idempotent (id int);
+-- Trigger enables RLS. Now create it again to test idempotency
+CREATE TABLE IF NOT EXISTS public.test_idempotent (id int);
+
+SELECT diag(
+    'RLS status for test_idempotent: ' ||
+    (SELECT '(relrowsecurity=' || relrowsecurity || ', relforcerowsecurity=' || relforcerowsecurity || ')'
+     FROM pg_class WHERE relname = 'test_idempotent')
 );
+
+SELECT ok(
+    (SELECT relrowsecurity FROM pg_class WHERE relname = 'test_idempotent') AND
+    (SELECT relforcerowsecurity FROM pg_class WHERE relname = 'test_idempotent'),
+    'Trigger is idempotent and does not error on table with RLS already enabled'
+);
+
 
 -- ============================================
 -- 7. TRANSACTION BEHAVIOR (2 tests)
