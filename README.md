@@ -77,6 +77,60 @@ Both `relrowsecurity` and `relforcerowsecurity` should be `t` (true).
 
 This also catches tables moved into `public` via `ALTER TABLE ... SET SCHEMA public`.
 
+## Implementation
+
+The complete implementation after all migrations:
+
+```sql
+-- Trigger function
+CREATE OR REPLACE FUNCTION public.enable_rls_on_new_tables()
+RETURNS event_trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    obj record;
+    table_oid oid;
+    rls_status record;
+BEGIN
+    -- Prevent infinite recursion
+    IF current_setting('enable_rls.in_trigger', true) = 'true' THEN
+        RETURN;
+    END IF;
+
+    FOR obj IN SELECT * FROM pg_event_trigger_ddl_commands()
+        WHERE command_tag IN ('CREATE TABLE', 'CREATE TABLE AS', 'SELECT INTO', 'ALTER TABLE')
+          AND object_type = 'table'
+    LOOP
+        IF obj.schema_name = 'public' THEN
+            table_oid := obj.object_identity::regclass::oid;
+
+            SELECT relrowsecurity, relforcerowsecurity
+            INTO rls_status
+            FROM pg_class
+            WHERE oid = table_oid;
+
+            IF rls_status.relrowsecurity AND rls_status.relforcerowsecurity THEN
+                RAISE NOTICE 'RLS with FORCE already enabled on table: %', obj.object_identity;
+            ELSE
+                PERFORM set_config('enable_rls.in_trigger', 'true', true);
+                EXECUTE format('ALTER TABLE %s ENABLE ROW LEVEL SECURITY', obj.object_identity);
+                EXECUTE format('ALTER TABLE %s FORCE ROW LEVEL SECURITY', obj.object_identity);
+                PERFORM set_config('enable_rls.in_trigger', 'false', true);
+                RAISE NOTICE 'RLS enabled with FORCE on table: %', obj.object_identity;
+            END IF;
+        END IF;
+    END LOOP;
+END;
+$$;
+
+-- Event trigger
+CREATE EVENT TRIGGER enable_rls_trigger
+ON ddl_command_end
+WHEN TAG IN ('CREATE TABLE', 'CREATE TABLE AS', 'SELECT INTO', 'ALTER TABLE')
+EXECUTE FUNCTION public.enable_rls_on_new_tables();
+```
+
 ## Project Structure
 
 ```
@@ -121,7 +175,8 @@ supabase test db
 
 ## Important Notes
 
-- This only affects **new** tables created after installation
+- This affects **new** tables created after installation
+- Foreign tables are not affected (PostgreSQL does not support RLS on foreign tables)
 - Tables moved into `public` via `ALTER TABLE ... SET SCHEMA` also get RLS enabled
 - **Disabling RLS is forbidden**: `DISABLE ROW LEVEL SECURITY` and `NO FORCE ROW LEVEL SECURITY` are immediately reversed
 - Existing tables are not modified; enable RLS on them manually if needed

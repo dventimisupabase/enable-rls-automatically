@@ -49,6 +49,7 @@ Tests use pgTAP and run inside a transaction that rolls back (no cleanup needed)
 ## Important Behavior
 
 - Only affects tables in `public` schema; other schemas are ignored
+- Foreign tables are not affected (PostgreSQL does not support RLS on foreign tables)
 - Only affects **new** tables created after installation; existing tables unchanged
 - Tables moved into `public` via `ALTER TABLE ... SET SCHEMA public` also get RLS enabled
 - **Disabling RLS is forbidden**: `DISABLE ROW LEVEL SECURITY` and `NO FORCE ROW LEVEL SECURITY` are immediately reversed

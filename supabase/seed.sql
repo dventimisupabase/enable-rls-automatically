@@ -1,0 +1,2 @@
+-- Seed file for enable-rls-automatically
+-- This file is intentionally empty (no seed data needed)

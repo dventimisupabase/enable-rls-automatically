@@ -21,6 +21,7 @@ BEGIN
         RETURN;
     END IF;
 
+    -- Note: Foreign tables do not support RLS, so we only process regular tables
     FOR obj IN SELECT * FROM pg_event_trigger_ddl_commands()
         WHERE command_tag IN ('CREATE TABLE', 'CREATE TABLE AS', 'SELECT INTO', 'ALTER TABLE')
           AND object_type = 'table'
@@ -50,6 +51,7 @@ END;
 $$;
 
 -- Event trigger that fires after table creation or modification
+-- Note: Foreign tables are excluded because they do not support RLS
 CREATE EVENT TRIGGER enable_rls_trigger
 ON ddl_command_end
 WHEN TAG IN ('CREATE TABLE', 'CREATE TABLE AS', 'SELECT INTO', 'ALTER TABLE')
