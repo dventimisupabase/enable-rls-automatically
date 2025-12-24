@@ -10,7 +10,7 @@ PostgreSQL event trigger that automatically enables Row Level Security (RLS) wit
 
 ### Local Development
 ```bash
-supabase start              # Start local Supabase
+supabase start              # Start local Supabase (requires Docker)
 supabase db reset           # Apply migrations (enables the trigger)
 supabase test db            # Run pgTAP tests (34 tests)
 ```
@@ -23,21 +23,32 @@ supabase db push
 
 ### Standalone PostgreSQL (non-Supabase)
 ```bash
-psql -f install.sql         # Install trigger
+psql -f install.sql         # Install trigger (function in default schema)
 psql -f uninstall.sql       # Remove trigger
 ```
 
 ## Architecture
 
-The project consists of a single PostgreSQL event trigger:
+Single PostgreSQL event trigger with two components:
 
-1. **Event Trigger** (`enable_rls_trigger`): Fires on `ddl_command_end` for `CREATE TABLE`, `CREATE TABLE AS`, and `SELECT INTO` commands
-2. **Trigger Function** (`enable_rls_on_new_tables()`): Checks if new table is in `public` schema, then executes `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` and `ALTER TABLE ... FORCE ROW LEVEL SECURITY`
+1. **Event Trigger** (`enable_rls_trigger`): Fires on `ddl_command_end` for `CREATE TABLE`, `CREATE TABLE AS`, and `SELECT INTO`
+2. **Trigger Function** (`enable_rls_on_new_tables()`): Uses `pg_event_trigger_ddl_commands()` to get new table info, filters for `public` schema, then runs `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` and `ALTER TABLE ... FORCE ROW LEVEL SECURITY`
 
 Key files:
-- `supabase/migrations/20241224000000_enable_rls_trigger.sql` - Supabase migration
-- `install.sql` / `uninstall.sql` - Standalone installation scripts
+- `supabase/migrations/20241224000000_enable_rls_trigger.sql` - Supabase migration (function in `public` schema)
+- `install.sql` / `uninstall.sql` - Standalone scripts (function in default schema)
 - `supabase/tests/00001_rls_trigger_test.sql` - pgTAP test suite
+
+## Testing
+
+Tests use pgTAP and run inside a transaction that rolls back (no cleanup needed). Test categories:
+- Installation verification (function/trigger existence)
+- Core functionality (RLS + FORCE enabled)
+- Schema filtering (public only; temp/private ignored)
+- CREATE TABLE variants (CTAS, LIKE, IF NOT EXISTS, UNLOGGED, partitioned)
+- Non-triggering DDL (views, matviews, ALTER, INDEX, SEQUENCE)
+- Edge cases (special chars, mixed case, reserved words, idempotency)
+- Uninstall verification (disable/enable trigger behavior)
 
 ## Important Behavior
 
