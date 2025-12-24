@@ -12,7 +12,7 @@ PostgreSQL event trigger that automatically enables Row Level Security (RLS) wit
 ```bash
 supabase start              # Start local Supabase (requires Docker)
 supabase db reset           # Apply migrations (enables the trigger)
-supabase test db            # Run pgTAP tests (34 tests)
+supabase test db            # Run pgTAP tests (39 tests)
 ```
 
 ### Deploy to Hosted Project
@@ -25,7 +25,7 @@ supabase db push
 
 Single PostgreSQL event trigger with two components:
 
-1. **Event Trigger** (`enable_rls_trigger`): Fires on `ddl_command_end` for `CREATE TABLE`, `CREATE TABLE AS`, and `SELECT INTO`
+1. **Event Trigger** (`enable_rls_trigger`): Fires on `ddl_command_end` for `CREATE TABLE`, `CREATE TABLE AS`, `SELECT INTO`, and `ALTER TABLE`
 2. **Trigger Function** (`public.enable_rls_on_new_tables()`): Uses `pg_event_trigger_ddl_commands()` to get new table info, filters for `public` schema, then runs `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` and `ALTER TABLE ... FORCE ROW LEVEL SECURITY`. Declared as `SECURITY DEFINER` to execute with owner privileges.
 
 Key files:
@@ -39,15 +39,18 @@ Tests use pgTAP and run inside a transaction that rolls back (no cleanup needed)
 - Core functionality (RLS + FORCE enabled on basic and constrained tables)
 - Schema filtering (public only; temp/private/other schemas ignored)
 - CREATE TABLE variants (CTAS, LIKE, IF NOT EXISTS, UNLOGGED, partitioned)
-- Non-triggering DDL (views, matviews, ALTER, INDEX, SEQUENCE)
+- Non-triggering DDL (views, matviews, INDEX, SEQUENCE)
 - Edge cases (special chars, mixed case, reserved words, idempotency)
 - Transaction behavior (savepoint rollback, visibility)
 - Uninstall verification (disable/enable trigger behavior)
+- ALTER TABLE SET SCHEMA (tables moved into public get RLS)
 
 ## Important Behavior
 
 - Only affects tables in `public` schema; other schemas are ignored
 - Only affects **new** tables created after installation; existing tables unchanged
+- Tables moved into `public` via `ALTER TABLE ... SET SCHEMA public` also get RLS enabled
+- Any `ALTER TABLE` on a public table re-enables RLS if it was disabled (safety feature)
 - Tables still need RLS policies created; this just enables the mechanism
 - Tables without policies deny all access (except to superusers/owners without FORCE)
 - The trigger is idempotent: if RLS is already enabled, it logs a notice but doesn't error

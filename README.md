@@ -69,11 +69,13 @@ Both `relrowsecurity` and `relforcerowsecurity` should be `t` (true).
 
 ## How It Works
 
-1. An event trigger fires on `ddl_command_end` after any `CREATE TABLE` statement
-2. The trigger function checks if the new table is in the `public` schema
-3. If so, it executes:
+1. An event trigger fires on `ddl_command_end` after `CREATE TABLE` or `ALTER TABLE` statements
+2. The trigger function checks if the table is in the `public` schema
+3. If so, and RLS is not already enabled, it executes:
    - `ALTER TABLE ... ENABLE ROW LEVEL SECURITY`
    - `ALTER TABLE ... FORCE ROW LEVEL SECURITY`
+
+This also catches tables moved into `public` via `ALTER TABLE ... SET SCHEMA public`.
 
 ## Project Structure
 
@@ -98,7 +100,7 @@ The test suite uses [pgTAP](https://pgtap.org/) via `supabase test db`.
 # Ensure local Supabase is running
 supabase start
 
-# Run all tests (34 tests)
+# Run all tests (39 tests)
 supabase test db
 ```
 
@@ -110,14 +112,17 @@ supabase test db
 | Core Functionality        | 4     | RLS + FORCE enabled on basic/constrained tables        |
 | Schema Filtering          | 4     | public only; temp/private/auth ignored                 |
 | CREATE TABLE Variants     | 6     | CTAS, LIKE, IF NOT EXISTS, UNLOGGED, partitioned       |
-| Non-Triggering DDL        | 5     | Views, matviews, ALTER, INDEX, SEQUENCE                |
+| Non-Triggering DDL        | 5     | Views, matviews, INDEX, SEQUENCE, ALTER TABLE behavior |
 | Edge Cases                | 5     | Special chars, mixed case, reserved words, idempotency |
 | Transaction Behavior      | 2     | Savepoint rollback, visibility                         |
 | Uninstall Verification    | 4     | Disable/enable trigger, behavior changes               |
+| ALTER TABLE SET SCHEMA    | 5     | Tables moved into public get RLS enabled               |
 
 ## Important Notes
 
 - This only affects **new** tables created after installation
+- Tables moved into `public` via `ALTER TABLE ... SET SCHEMA` also get RLS enabled
+- Any `ALTER TABLE` on a public table will re-enable RLS if it was disabled (safety feature)
 - Existing tables are not modified; enable RLS on them manually if needed
 - You still need to create RLS policies for the tables; this just enables the RLS mechanism
 - Tables without policies will deny all access (except to superusers/owners without FORCE)

@@ -10,7 +10,7 @@ BEGIN;
 -- Enable NOTICE messages for visibility
 SET client_min_messages TO 'notice';
 
-SELECT plan(34);
+SELECT plan(39);
 
 -- ============================================
 -- SETUP: Ensure clean state
@@ -235,19 +235,16 @@ SELECT ok(
     'MATERIALIZED VIEW should not have RLS enabled'
 );
 
--- Test 21: ALTER TABLE does not re-trigger
--- First disable RLS manually, then alter table
+-- Test 21: ALTER TABLE re-enables RLS if disabled (safety feature)
+-- First disable RLS manually, then alter table - RLS should be re-enabled
 ALTER TABLE public.test_basic DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.test_basic NO FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.test_basic ADD COLUMN extra_col text;
 
 SELECT ok(
-    NOT (SELECT relrowsecurity FROM pg_class WHERE relname = 'test_basic'),
-    'ALTER TABLE should not re-enable RLS'
+    (SELECT relrowsecurity FROM pg_class WHERE relname = 'test_basic'),
+    'ALTER TABLE should re-enable RLS on public table'
 );
-
--- Re-enable for subsequent tests
-ALTER TABLE public.test_basic ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.test_basic FORCE ROW LEVEL SECURITY;
 
 -- Test 22: CREATE INDEX does not trigger RLS changes
 CREATE INDEX test_basic_idx ON public.test_basic (id);
@@ -390,6 +387,61 @@ CREATE TABLE public.test_after_reenable (id int);
 SELECT ok(
     (SELECT relrowsecurity FROM pg_class WHERE relname = 'test_after_reenable'),
     'Table created after trigger re-enable should have RLS'
+);
+
+-- ============================================
+-- 9. ALTER TABLE SET SCHEMA (5 tests)
+-- ============================================
+
+-- Test 35: Table in private schema has no RLS (baseline)
+CREATE TABLE test_private.move_to_public (id int);
+
+SELECT ok(
+    NOT (SELECT relrowsecurity FROM pg_class
+         WHERE relname = 'move_to_public'
+           AND relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'test_private')),
+    'Table in test_private should NOT have RLS before move'
+);
+
+-- Test 36: Move table to public schema - should get RLS
+ALTER TABLE test_private.move_to_public SET SCHEMA public;
+
+SELECT ok(
+    (SELECT relrowsecurity FROM pg_class
+     WHERE relname = 'move_to_public'
+       AND relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')),
+    'Table moved to public via SET SCHEMA should have RLS enabled'
+);
+
+-- Test 37: Table moved to public has FORCE RLS
+SELECT ok(
+    (SELECT relforcerowsecurity FROM pg_class
+     WHERE relname = 'move_to_public'
+       AND relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')),
+    'Table moved to public via SET SCHEMA should have FORCE RLS enabled'
+);
+
+-- Test 38: Moving table OUT of public retains RLS (we don't remove it)
+CREATE TABLE public.move_out_of_public (id int);
+-- RLS is now enabled on this table
+ALTER TABLE public.move_out_of_public SET SCHEMA test_private;
+
+SELECT ok(
+    (SELECT relrowsecurity FROM pg_class
+     WHERE relname = 'move_out_of_public'
+       AND relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'test_private')),
+    'Table moved OUT of public should retain RLS (not removed)'
+);
+
+-- Test 39: ALTER TABLE on non-public schema table does not enable RLS
+CREATE TABLE test_private.stays_private (id int);
+ALTER TABLE test_private.stays_private ADD COLUMN name text;
+
+SELECT ok(
+    NOT (SELECT relrowsecurity FROM pg_class
+         WHERE relname = 'stays_private'
+           AND relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'test_private')),
+    'ALTER TABLE on non-public table should NOT enable RLS'
 );
 
 -- ============================================
