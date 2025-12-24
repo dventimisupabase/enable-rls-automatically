@@ -148,14 +148,65 @@ enable-rls-automatically/
 
 The test suite uses [pgTAP](https://pgtap.org/) via `supabase test db`.
 
-### Run Tests Locally
+### Local Testing
 
 ```bash
-# Ensure local Supabase is running
+# Start local Supabase (requires Docker)
 supabase start
 
-# Run all tests (41 tests)
+# Apply migrations and reset database
+supabase db reset
+
+# Run the pgTAP test suite (41 tests)
 supabase test db
+```
+
+To manually verify the trigger is working:
+
+```bash
+# Connect to local database
+psql postgresql://postgres:postgres@127.0.0.1:54322/postgres
+
+# Create a test table and observe the NOTICE
+CREATE TABLE public.test_rls (id int);
+-- NOTICE:  RLS enabled with FORCE on table: public.test_rls
+
+# Verify RLS is enabled
+SELECT relname, relrowsecurity, relforcerowsecurity
+FROM pg_class WHERE relname = 'test_rls';
+
+# Clean up
+DROP TABLE public.test_rls;
+```
+
+### Testing with a Linked Project
+
+To test against a hosted Supabase project:
+
+```bash
+# Link to your project (you'll need the project ref from your Supabase dashboard)
+supabase link --project-ref <your-project-ref>
+
+# Push migrations to the hosted project
+supabase db push
+
+# Run tests against the linked project
+supabase test db --linked
+```
+
+To manually verify on the hosted project, use the SQL Editor in the Supabase Dashboard or connect via `psql`:
+
+```bash
+# Connect to hosted database (get connection string from Dashboard > Settings > Database)
+psql "postgresql://postgres:[password]@db.[project-ref].supabase.co:5432/postgres"
+
+# Create a test table
+CREATE TABLE public.test_rls (id int);
+-- NOTICE:  RLS enabled with FORCE on table: public.test_rls
+
+# Verify and clean up
+SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname = 'test_rls';
+DROP TABLE public.test_rls;
 ```
 
 ### Test Coverage
