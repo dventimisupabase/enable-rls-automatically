@@ -12,7 +12,7 @@ PostgreSQL event trigger that automatically enables Row Level Security (RLS) wit
 ```bash
 supabase start              # Start local Supabase (requires Docker)
 supabase db reset           # Apply migrations (enables the trigger)
-supabase test db            # Run pgTAP tests (41 tests)
+supabase test db            # Run pgTAP tests (47 tests)
 ```
 
 ### Deploy to Hosted Project
@@ -45,6 +45,8 @@ Tests use pgTAP and run inside a transaction that rolls back (no cleanup needed)
 - Uninstall verification (disable/enable trigger behavior)
 - ALTER TABLE SET SCHEMA (tables moved into public get RLS)
 - Forbid disabling RLS (DISABLE/NO FORCE immediately re-enabled)
+- Partition children (RLS enabled on partition tables)
+- Table inheritance (RLS enabled on inherited child tables)
 
 ## Important Behavior
 

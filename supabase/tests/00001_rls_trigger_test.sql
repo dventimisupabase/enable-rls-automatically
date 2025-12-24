@@ -10,7 +10,7 @@ BEGIN;
 -- Enable NOTICE messages for visibility
 SET client_min_messages TO 'notice';
 
-SELECT plan(41);
+SELECT plan(47);
 
 -- ============================================
 -- SETUP: Ensure clean state
@@ -464,6 +464,65 @@ ALTER TABLE public.test_disable_rls NO FORCE ROW LEVEL SECURITY;
 SELECT ok(
     (SELECT relforcerowsecurity FROM pg_class WHERE relname = 'test_disable_rls'),
     'NO FORCE ROW LEVEL SECURITY should be immediately re-enabled'
+);
+
+-- ============================================
+-- 11. PARTITION CHILDREN (3 tests)
+-- ============================================
+
+-- We already tested partitioned parent tables (test_partitioned).
+-- Now test that partition children also get RLS.
+
+-- Test 42: Partition child gets RLS enabled
+CREATE TABLE public.test_partition_child
+    PARTITION OF public.test_partitioned
+    FOR VALUES FROM ('2024-01-01') TO ('2024-12-31');
+
+SELECT ok(
+    (SELECT relrowsecurity FROM pg_class WHERE relname = 'test_partition_child'),
+    'Partition child should have RLS enabled'
+);
+
+-- Test 43: Partition child gets FORCE RLS enabled
+SELECT ok(
+    (SELECT relforcerowsecurity FROM pg_class WHERE relname = 'test_partition_child'),
+    'Partition child should have FORCE RLS enabled'
+);
+
+-- Test 44: Another partition child also gets RLS
+CREATE TABLE public.test_partition_child_2
+    PARTITION OF public.test_partitioned
+    FOR VALUES FROM ('2025-01-01') TO ('2025-12-31');
+
+SELECT ok(
+    (SELECT relrowsecurity FROM pg_class WHERE relname = 'test_partition_child_2'),
+    'Second partition child should also have RLS enabled'
+);
+
+-- ============================================
+-- 12. TABLE INHERITANCE (3 tests)
+-- ============================================
+
+-- Test 45: Parent table for inheritance gets RLS
+CREATE TABLE public.test_inherit_parent (id int, name text);
+
+SELECT ok(
+    (SELECT relrowsecurity FROM pg_class WHERE relname = 'test_inherit_parent'),
+    'Inheritance parent table should have RLS enabled'
+);
+
+-- Test 46: Child table via INHERITS gets RLS
+CREATE TABLE public.test_inherit_child (extra_col text) INHERITS (public.test_inherit_parent);
+
+SELECT ok(
+    (SELECT relrowsecurity FROM pg_class WHERE relname = 'test_inherit_child'),
+    'Inherited child table should have RLS enabled'
+);
+
+-- Test 47: Child table via INHERITS gets FORCE RLS
+SELECT ok(
+    (SELECT relforcerowsecurity FROM pg_class WHERE relname = 'test_inherit_child'),
+    'Inherited child table should have FORCE RLS enabled'
 );
 
 -- ============================================

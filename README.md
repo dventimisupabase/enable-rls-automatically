@@ -157,7 +157,7 @@ supabase start
 # Apply migrations and reset database
 supabase db reset
 
-# Run the pgTAP test suite (41 tests)
+# Run the pgTAP test suite (47 tests)
 supabase test db
 ```
 
@@ -223,6 +223,8 @@ DROP TABLE public.test_rls;
 | Uninstall Verification    | 4     | Disable/enable trigger, behavior changes               |
 | ALTER TABLE SET SCHEMA    | 5     | Tables moved into public get RLS enabled               |
 | Forbid Disabling RLS      | 2     | DISABLE/NO FORCE immediately re-enabled                |
+| Partition Children        | 3     | Partition tables get RLS enabled                       |
+| Table Inheritance         | 3     | Inherited child tables get RLS enabled                 |
 
 ## Important Notes
 
