@@ -21,12 +21,6 @@ supabase link --project-ref <your-project-ref>
 supabase db push
 ```
 
-### Standalone PostgreSQL (non-Supabase)
-```bash
-psql -f install.sql         # Install trigger (function in default schema)
-psql -f uninstall.sql       # Remove trigger
-```
-
 ## Architecture
 
 Single PostgreSQL event trigger with two components:
@@ -35,8 +29,7 @@ Single PostgreSQL event trigger with two components:
 2. **Trigger Function** (`enable_rls_on_new_tables()`): Uses `pg_event_trigger_ddl_commands()` to get new table info, filters for `public` schema, then runs `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` and `ALTER TABLE ... FORCE ROW LEVEL SECURITY`
 
 Key files:
-- `supabase/migrations/20241224000000_enable_rls_trigger.sql` - Supabase migration (function in `public` schema)
-- `install.sql` / `uninstall.sql` - Standalone scripts (function in default schema)
+- `supabase/migrations/20241224000000_enable_rls_trigger.sql` - Migration that creates the trigger
 - `supabase/tests/00001_rls_trigger_test.sql` - pgTAP test suite
 
 ## Testing

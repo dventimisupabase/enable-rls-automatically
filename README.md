@@ -85,8 +85,6 @@ enable-rls-automatically/
 │   │   └── 20241224000000_enable_rls_trigger.sql
 │   └── tests/
 │       └── 00001_rls_trigger_test.sql
-├── install.sql                  # Standalone install (non-Supabase)
-├── uninstall.sql                # Standalone uninstall
 └── README.md
 ```
 
@@ -116,20 +114,6 @@ supabase test db
 | Edge Cases | 5 | Special chars, mixed case, reserved words, idempotency |
 | Transaction Behavior | 2 | Savepoint rollback, visibility |
 | Uninstall Verification | 4 | Disable/enable trigger, behavior changes |
-
-## Standalone Installation (Non-Supabase)
-
-For PostgreSQL without Supabase:
-
-```bash
-# Install
-psql -f install.sql
-
-# Uninstall
-psql -f uninstall.sql
-```
-
-Requires PostgreSQL 9.3+ and superuser or `rds_superuser` privileges.
 
 ## Important Notes
 
