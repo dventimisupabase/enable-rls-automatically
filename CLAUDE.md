@@ -12,7 +12,7 @@ PostgreSQL event trigger that automatically enables Row Level Security (RLS) wit
 ```bash
 supabase start              # Start local Supabase (requires Docker)
 supabase db reset           # Apply migrations (enables the trigger)
-supabase test db            # Run pgTAP tests (39 tests)
+supabase test db            # Run pgTAP tests (41 tests)
 ```
 
 ### Deploy to Hosted Project
@@ -44,13 +44,15 @@ Tests use pgTAP and run inside a transaction that rolls back (no cleanup needed)
 - Transaction behavior (savepoint rollback, visibility)
 - Uninstall verification (disable/enable trigger behavior)
 - ALTER TABLE SET SCHEMA (tables moved into public get RLS)
+- Forbid disabling RLS (DISABLE/NO FORCE immediately re-enabled)
 
 ## Important Behavior
 
 - Only affects tables in `public` schema; other schemas are ignored
 - Only affects **new** tables created after installation; existing tables unchanged
 - Tables moved into `public` via `ALTER TABLE ... SET SCHEMA public` also get RLS enabled
-- Any `ALTER TABLE` on a public table re-enables RLS if it was disabled (safety feature)
+- **Disabling RLS is forbidden**: `DISABLE ROW LEVEL SECURITY` and `NO FORCE ROW LEVEL SECURITY` are immediately reversed
+- Any `ALTER TABLE` on a public table re-enables RLS if it was disabled
 - Tables still need RLS policies created; this just enables the mechanism
 - Tables without policies deny all access (except to superusers/owners without FORCE)
 - The trigger is idempotent: if RLS is already enabled, it logs a notice but doesn't error

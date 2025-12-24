@@ -10,7 +10,7 @@ BEGIN;
 -- Enable NOTICE messages for visibility
 SET client_min_messages TO 'notice';
 
-SELECT plan(39);
+SELECT plan(41);
 
 -- ============================================
 -- SETUP: Ensure clean state
@@ -442,6 +442,28 @@ SELECT ok(
          WHERE relname = 'stays_private'
            AND relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'test_private')),
     'ALTER TABLE on non-public table should NOT enable RLS'
+);
+
+-- ============================================
+-- 10. FORBID DISABLING RLS (2 tests)
+-- ============================================
+
+-- Test 40: DISABLE ROW LEVEL SECURITY is immediately re-enabled
+CREATE TABLE public.test_disable_rls (id int);
+-- RLS is now enabled. Try to disable it.
+ALTER TABLE public.test_disable_rls DISABLE ROW LEVEL SECURITY;
+
+SELECT ok(
+    (SELECT relrowsecurity FROM pg_class WHERE relname = 'test_disable_rls'),
+    'DISABLE ROW LEVEL SECURITY should be immediately re-enabled'
+);
+
+-- Test 41: NO FORCE ROW LEVEL SECURITY is immediately re-enabled
+ALTER TABLE public.test_disable_rls NO FORCE ROW LEVEL SECURITY;
+
+SELECT ok(
+    (SELECT relforcerowsecurity FROM pg_class WHERE relname = 'test_disable_rls'),
+    'NO FORCE ROW LEVEL SECURITY should be immediately re-enabled'
 );
 
 -- ============================================

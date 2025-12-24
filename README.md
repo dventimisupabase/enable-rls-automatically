@@ -100,7 +100,7 @@ The test suite uses [pgTAP](https://pgtap.org/) via `supabase test db`.
 # Ensure local Supabase is running
 supabase start
 
-# Run all tests (39 tests)
+# Run all tests (41 tests)
 supabase test db
 ```
 
@@ -117,12 +117,13 @@ supabase test db
 | Transaction Behavior      | 2     | Savepoint rollback, visibility                         |
 | Uninstall Verification    | 4     | Disable/enable trigger, behavior changes               |
 | ALTER TABLE SET SCHEMA    | 5     | Tables moved into public get RLS enabled               |
+| Forbid Disabling RLS      | 2     | DISABLE/NO FORCE immediately re-enabled                |
 
 ## Important Notes
 
 - This only affects **new** tables created after installation
 - Tables moved into `public` via `ALTER TABLE ... SET SCHEMA` also get RLS enabled
-- Any `ALTER TABLE` on a public table will re-enable RLS if it was disabled (safety feature)
+- **Disabling RLS is forbidden**: `DISABLE ROW LEVEL SECURITY` and `NO FORCE ROW LEVEL SECURITY` are immediately reversed
 - Existing tables are not modified; enable RLS on them manually if needed
 - You still need to create RLS policies for the tables; this just enables the RLS mechanism
 - Tables without policies will deny all access (except to superusers/owners without FORCE)
